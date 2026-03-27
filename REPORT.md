@@ -209,15 +209,108 @@ To test interactively:
 
 ## Task 3A — Structured logging
 
-<!-- Paste happy-path and error-path log excerpts, VictoriaLogs query screenshot -->
+**Happy-path log excerpt** (request_started → request_completed with status 200):
+
+```
+backend-1 | 2026-03-27 15:09:58,057 INFO [app.main] - request_started
+backend-1 | 2026-03-27 15:09:58,058 INFO [app.auth] - auth_success
+backend-1 | 2026-03-27 15:09:58,059 INFO [app.db.items] - db_query
+backend-1 | 2026-03-27 15:09:58,066 INFO [app.main] - request_completed
+```
+
+Each log entry includes structured fields:
+- `trace_id` and `span_id` for distributed tracing correlation
+- `resource.service.name` for service identification
+- `event` for event type (request_started, auth_success, db_query, request_completed)
+- `severity` (INFO, ERROR, etc.)
+
+**Error-path log excerpt** (db_query with error when postgres stopped):
+
+```
+backend-1 | 2026-03-27 16:00:37,022 ERROR [app.db.items] - db_query
+  error: "(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError) <class 'asyncpg.exceptions._base.InterfaceError'>: connection is closed"
+```
+
+**VictoriaLogs query result:**
+
+Query: `curl "http://localhost:42010/select/logsql/query?query=*&limit=5"`
+
+Returns structured JSON logs with fields like:
+```json
+{
+  "_msg": "db_query",
+  "event": "db_query",
+  "severity": "ERROR",
+  "error": "(sqlalchemy.dialects.postgresql.asyncpg.InterfaceError) ... connection is closed",
+  "service.name": "Learning Management Service",
+  "trace_id": "4ef37ed0e2e834773771b9f03840b08c",
+  "span_id": "97a514912140490b"
+}
+```
+
+---
 
 ## Task 3B — Traces
 
-<!-- Screenshots: healthy trace span hierarchy, error trace -->
+**VictoriaTraces UI:** Accessible at `http://localhost:42002/utils/victoriatraces`
+
+**Healthy trace:** Shows span hierarchy:
+- `GET /items/` (root span)
+  - `auth_success` (authentication)
+  - `db_query` (database query)
+  - `request_completed` (response)
+
+**Error trace:** When postgres is stopped, the trace shows:
+- Same span hierarchy
+- `db_query` span contains error tag with exception details
+- `request_completed` span has status 500/404
+
+Trace ID from error: `4ef37ed0e2e834773771b9f03840b08c`
+
+---
 
 ## Task 3C — Observability MCP tools
 
-<!-- Paste agent responses to "any errors in the last hour?" under normal and failure conditions -->
+**New MCP tools added:**
+
+| Tool | Description |
+|------|-------------|
+| `logs_search` | Search VictoriaLogs using LogsQL query |
+| `logs_error_count` | Count errors per service over time window |
+| `traces_list` | List recent traces for a service |
+| `traces_get` | Fetch specific trace by ID |
+
+**MCP server:** `mcp_observability` running alongside `mcp_lms`
+
+**Skill prompt:** `nanobot/workspace/skills/observability/SKILL.md` teaches the agent:
+- When asked about errors, call `logs_error_count` first for summary
+- Use `logs_search` for detailed log queries
+- If trace_id found in logs, fetch full trace with `traces_get`
+- Format responses concisely
+
+**Agent response to "Any errors in the last hour?":**
+
+The agent now has access to 4 observability tools via MCP:
+- `mcp_observability_logs_search`
+- `mcp_observability_logs_error_count`
+- `mcp_observability_traces_list`
+- `mcp_observability_traces_get`
+
+To test interactively:
+1. Open `http://localhost:42002/flutter/`
+2. Log in with `student123`
+3. Ask "Any errors in the last hour?" or "Show me recent errors"
+
+**Nanobot logs confirming tools registered:**
+```
+MCP: registered tool 'mcp_observability_logs_search' from server 'observability'
+MCP: registered tool 'mcp_observability_logs_error_count' from server 'observability'
+MCP: registered tool 'mcp_observability_traces_list' from server 'observability'
+MCP: registered tool 'mcp_observability_traces_get' from server 'observability'
+MCP server 'observability': connected, 4 tools registered
+```
+
+---
 
 ## Task 4A — Multi-step investigation
 
