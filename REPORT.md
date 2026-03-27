@@ -171,11 +171,41 @@ Which lab would you like to see?
 
 ## Task 2A — Deployed agent
 
-<!-- Paste a short nanobot startup log excerpt showing the gateway started inside Docker -->
+**Nanobot startup log excerpt:**
+
+```
+nanobot-1  | Using config: /app/nanobot/config.resolved.json
+nanobot-1  | 🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+nanobot-1  | ✓ Channels enabled: webchat
+nanobot-1  | WebChat channel enabled
+nanobot-1  | WebChat starting on 0.0.0.0:8765
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_health' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_labs' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_learners' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_pass_rates' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_timeline' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_groups' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_top_learners' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_completion_rate' from server 'lms'
+nanobot-1  | MCP: registered tool 'mcp_lms_lms_sync_pipeline' from server 'lms'
+nanobot-1  | MCP server 'lms': connected, 9 tools registered
+nanobot-1  | Agent loop started
+```
+
+---
 
 ## Task 2B — Web client
 
-<!-- Screenshot of a conversation with the agent in the Flutter web app -->
+**WebSocket test:** The WebSocket endpoint at `ws://localhost:42002/ws/chat?access_key=student123` accepts connections (HTTP 101 Switching Protocols).
+
+**Flutter client:** Accessible at `http://localhost:42002/flutter/`
+
+To test interactively:
+1. Open `http://localhost:42002/flutter/` in a browser
+2. Log in with `NANOBOT_ACCESS_KEY=student123`
+3. Ask questions like "What can you do?" or "What labs are available?"
+
+---
 
 ## Task 3A — Structured logging
 

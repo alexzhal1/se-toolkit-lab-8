@@ -13,7 +13,13 @@
   },
   "channels": {
     "sendProgress": true,
-    "sendToolHints": false
+    "sendToolHints": false,
+    "webchat": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 8765,
+      "allow_from": ["*"]
+    }
   },
   "providers": {
     "custom": {
@@ -39,10 +45,10 @@
     "restrictToWorkspace": false,
     "mcpServers": {
       "lms": {
-        "command": "uv",
-        "args": ["--directory", "/root/se-toolkit-lab-8/mcp", "run", "mcp_lms"],
+        "command": "python",
+        "args": ["-m", "mcp_lms"],
         "env": {
-          "NANOBOT_LMS_BACKEND_URL": "http://localhost:42002",
+          "NANOBOT_LMS_BACKEND_URL": "http://backend:8000",
           "NANOBOT_LMS_API_KEY": "lms-api-key-secret"
         }
       }
