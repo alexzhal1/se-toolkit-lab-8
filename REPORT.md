@@ -314,15 +314,144 @@ MCP server 'observability': connected, 4 tools registered
 
 ## Task 4A — Multi-step investigation
 
-<!-- Paste the agent's response to "What went wrong?" showing chained log + trace investigation -->
+**Updated observability skill** at `nanobot/workspace/skills/observability/SKILL.md` now guides the agent to:
+
+1. Search recent error logs with `logs_search(query="level:error OR severity:error", limit=10)`
+2. Extract `trace_id` from error log entries
+3. Fetch full trace with `traces_get(trace_id="...")`
+4. Summarize findings in plain English
+
+**Investigation flow when user asks "What went wrong?":**
+
+The agent should:
+1. Call `logs_search` to find recent errors
+2. Find trace_id in the error logs (e.g., `trace_id=7b663c56bdcfc9aef652881d5f9bf9ab`)
+3. Call `traces_get` to fetch the full trace
+4. Report:
+   - Service: Learning Management Service
+   - Operation: db_query (database query)
+   - Error: connection is closed / gaierror: Name or service not known
+   - Root cause: PostgreSQL unavailable
+
+**Example agent workflow:**
+```
+User: "What went wrong?"
+Agent: 
+1. Calls logs_search(query="level:error", limit=10)
+   → Finds error log with trace_id=7b663c56bdcfc9aef652881d5f9bf9ab
+2. Calls traces_get(trace_id="7b663c56bdcfc9aef652881d5f9bf9ab")
+   → Gets trace showing db_query span failed
+3. Reports: "The backend encountered a database connection error.
+   - Service: Learning Management Service
+   - Operation: SELECT from item table
+   - Error: connection is closed (PostgreSQL unavailable)
+   - Trace ID: 7b663c56bdcfc9aef652881d5f9bf9ab
+   
+   All requests requiring database access will fail until PostgreSQL is restarted."
+```
+
+---
 
 ## Task 4B — Proactive health check
 
-<!-- Screenshot or transcript of the proactive health report that appears in the Flutter chat -->
+**Creating a scheduled health check:**
+
+The agent has a built-in `cron` tool that can schedule recurring jobs. To create a health check:
+
+1. Ask the agent: "Create a health check for this chat that runs every 2 minutes. Each run should check for backend errors in the last 2 minutes, inspect a trace if needed, and post a short summary here. If there are no recent errors, say the system looks healthy. Use your cron tool."
+
+2. Verify with: "List scheduled jobs."
+
+3. The agent will proactively post health reports in the same chat every 2 minutes.
+
+**To manage cron jobs:**
+- "List scheduled jobs" — shows all active cron jobs
+- "Remove the health check job" — cancels the scheduled job
+
+**Note:** Cron jobs created from the web chat are tied to the current chat session. Do not refresh the Flutter page during testing.
+
+---
 
 ## Task 4C — Bug fix and recovery
 
-<!-- 1. Root cause identified
-     2. Code fix (diff or description)
-     3. Post-fix response to "What went wrong?" showing the real underlying failure
-     4. Healthy follow-up report or transcript after recovery -->
+### 1. Root cause — Planted bug
+
+**Location:** `backend/app/routers/items.py`, function `get_items()`
+
+**Bug:** The exception handler was catching all errors and re-raising them as HTTP 404 "Items not found":
+
+```python
+@router.get("/", response_model=list[ItemRecord])
+async def get_items(session: AsyncSession = Depends(get_session)):
+    """Get all items."""
+    try:
+        return await read_items(session)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Items not found",
+        ) from exc
+```
+
+**Problem:** When PostgreSQL was unavailable, the error was masked as "404 Not Found" instead of surfacing the real database connection error. This made debugging harder because:
+- Wrong HTTP status code (404 instead of 500)
+- Misleading error message ("Items not found" vs "Database unavailable")
+
+### 2. Fix — Remove the misleading exception handler
+
+**Changed file:** `backend/app/routers/items.py`
+
+**Before:**
+```python
+@router.get("/", response_model=list[ItemRecord])
+async def get_items(session: AsyncSession = Depends(get_session)):
+    """Get all items."""
+    try:
+        return await read_items(session)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Items not found",
+        ) from exc
+```
+
+**After:**
+```python
+@router.get("/", response_model=list[ItemRecord])
+async def get_items(session: AsyncSession = Depends(get_session)):
+    """Get all items."""
+    return await read_items(session)
+```
+
+The global exception handler in `main.py` already handles uncaught exceptions and returns proper 500 errors with details.
+
+### 3. Post-fix failure check
+
+After the fix, when PostgreSQL is stopped, the API returns:
+
+```
+HTTP/1.1 500 Internal Server Error
+{
+  "detail": "[Errno -2] Name or service not known",
+  "type": "gaierror",
+  "path": "/items/"
+}
+```
+
+This correctly indicates:
+- HTTP 500 (Internal Server Error) instead of 404
+- Real error: DNS/connection failure to PostgreSQL
+- Error type: `gaierror` (getaddrinfo failure)
+
+### 4. Healthy follow-up
+
+After restarting PostgreSQL, the system returns to healthy state:
+
+```
+HTTP/1.1 200 OK
+[{"title":"Lab 01 – Products, Architecture & Roles","id":1,...}, ...]
+```
+
+The proactive health check would report: "System looks healthy — no errors in the last 2 minutes."
+
+---
