@@ -354,6 +354,14 @@ Agent:
 
 ## Task 4B — Proactive health check
 
+**Cron skill created:** `nanobot/workspace/skills/cron/SKILL.md`
+
+The skill teaches the agent to:
+- Create scheduled jobs using cron syntax
+- List active cron jobs
+- Remove jobs when requested
+- Create health checks that periodically check for errors
+
 **Creating a scheduled health check:**
 
 The agent has a built-in `cron` tool that can schedule recurring jobs. To create a health check:
@@ -369,6 +377,23 @@ The agent has a built-in `cron` tool that can schedule recurring jobs. To create
 - "Remove the health check job" — cancels the scheduled job
 
 **Note:** Cron jobs created from the web chat are tied to the current chat session. Do not refresh the Flutter page during testing.
+
+**Testing:**
+```
+# Access the Flutter web client
+http://localhost:42002/flutter/
+
+# Login with NANOBOT_ACCESS_KEY (student123)
+# Ask: "Create a health check that runs every 15 minutes"
+# Ask: "List scheduled jobs"
+```
+
+**Nanobot cron service logs:**
+```
+nanobot-1 | Cron service started with 0 jobs
+```
+
+After creating a job via the Flutter chat, the agent will confirm and the job will appear in the list.
 
 ---
 
